@@ -1,0 +1,899 @@
+---
+title: "Vitamin A Paper"
+author: "Rachel M Burke"
+date: "June 7, 2016"
+output: html_document
+---
+
+```{r date, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE}
+date <- Sys.Date()
+```
+
+Last updated `r date`.
+
+```{r data, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE}
+# Set WD, get data, source functions
+
+setwd("C:/Users/LXX8/Documents/Dissertation Followup/vitamin a")
+
+
+# Get necessary packages
+library(dplyr)
+library(ggplot2)
+library(htmlTable)
+library(reshape2)
+
+#Source functions
+source("My_functions.R")
+
+## short correlation function
+shortcorrfn <- function(x, data, mom){
+  # First just filter dataset to make smaller and more manageable
+  subdat <-data
+  if(mom == "b"){
+    subdat2 <- subset(subdat, select = c("twinid", "visit_number", x, "crp_b",
+                                         "agp_b", "inflcat_b", "ln_crp_b",
+                                         "ln_agp_b"))
+    subdat3 <- mutate(subdat2, ln_x = log(subdat2[ ,3]), x = subdat2[ , 3],
+                      CRP = crp_b, AGP = agp_b, ln_CRP = ln_crp_b, 
+                      ln_AGP = ln_agp_b, inflcat = inflcat_b)
+    extdec <- c(-2.102639, -0.468499)
+  }
+  if(mom == "m"){
+    subdat2 <- subset(subdat, select = c("twinid", "visit_number", x, "crp_m",
+                                         "agp_m", "inflcat_m", "ln_crp_m",
+                                         "ln_agp_m"))
+    subdat3 <- mutate(subdat2, ln_x = log(subdat2[ ,3]), x = subdat2[ , 3],
+                      CRP = crp_m, AGP = agp_m, ln_CRP = ln_crp_m, 
+                      ln_AGP = ln_agp_m, inflcat = inflcat_m)
+    extdec <- c(-1.75152, -0.625036)
+  }
+  grouped <- group_by(subdat3, inflcat) %>%
+    filter(!is.na(inflcat))
+  # Next grab CRP and AGP references
+  ## CRP - by inflammation group
+  crps <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                       median(., na.rm = TRUE), 
+                                       dec1fn, 
+                                       min(., na.rm = TRUE)), CRP)
+  type <- c(rep("crp", dim(crps)[1]))
+  crp <- cbind(type, crps)
+  colnames(crp) <- c("var", "inflammation", "mean", "median", "decile.1", "min")
+  crpln <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                        median(., na.rm = TRUE), 
+                                        dec1fn, 
+                                        min(., na.rm = TRUE)),
+                          ln_CRP)
+  crpln.2 <- cbind(crpln, extdec[1])
+  type <- c(rep("crp", dim(crpln.2)[1]))
+  ln.crp <- cbind(type, crpln.2)
+  colnames(ln.crp) <- c("var", "inflammation", "mean", "median", "decile.1", "min", "ext.decile")
+  ## CRP - overall
+  crps.all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                           median(., na.rm = TRUE), 
+                                           dec1fn, 
+                                           min(., na.rm = TRUE)), CRP)
+  type <- c(rep("crp_all", dim(crps.all)[1]))
+  crp_all <- cbind(type, crps.all)
+  colnames(crp_all) <- c("var", "mean", "median", "decile.1", "min")
+  crpln_all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                            median(., na.rm = TRUE), 
+                                            dec1fn, 
+                                            min(., na.rm = TRUE)), ln_CRP)
+  crpln.2_all <- cbind(crpln_all, extdec[1])
+  type <- c(rep("crp_all", dim(crpln.2_all)[1]))
+  ln.crp_all <- cbind(type, crpln.2_all)
+  colnames(ln.crp_all) <- c("var", "mean", "median", "decile.1", "min", "ext.decile")
+  
+  ## AGP - by inflammation group
+  agps <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                       median(., na.rm = TRUE), 
+                                       dec1fn, 
+                                       min(., na.rm = TRUE)), 
+                         AGP)
+  type <- c(rep("agp", dim(agps)[1]))
+  agp <- cbind(type, agps)
+  colnames(agp) <- c("var", "inflammation", "mean", "median", "decile.1", "min")
+  agpln <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                        median(., na.rm = TRUE), 
+                                        dec1fn, 
+                                        min(., na.rm = TRUE)), 
+                          ln_AGP)
+  agpln.2 <- cbind(agpln, extdec[2])
+  type <- c(rep("agp", dim(agpln.2)[1]))
+  ln.agp <- cbind(type, agpln.2)
+  colnames(ln.agp) <- c("var", "inflammation", "mean", "median", "decile.1", "min", "ext.decile")  
+  infl.refs <- rbind(crp, agp)
+  infl.refs.ln <- rbind(ln.crp, ln.agp)
+  ## AGP - overall
+  agps.all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                           median(., na.rm = TRUE), 
+                                           dec1fn, 
+                                           min(., na.rm = TRUE)), AGP)
+  type <- c(rep("agp_all", dim(agps.all)[1]))
+  agp_all <- cbind(type, agps.all)
+  colnames(agp_all) <- c("var", "mean", "median", "decile.1", "min")
+  agpln_all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                            median(., na.rm = TRUE), 
+                                            dec1fn, 
+                                            min(., na.rm = TRUE)), ln_AGP)
+  agpln.2_all <- cbind(agpln_all, extdec[1])
+  type <- c(rep("agp_all", dim(agpln.2_all)[1]))
+  ln.agp_all <- cbind(type, agpln.2_all)
+  colnames(ln.agp_all) <- c("var",  "mean", "median", "decile.1", "min", "ext.decile")
+  
+  # Run linear regressions and save values
+  linreg <- lm(ln_x ~ ln_CRP + ln_AGP, subdat3)
+  coef <- coef(linreg)
+  linreg.int <- lm(ln_x ~ ln_CRP + ln_AGP + ln_CRP*ln_AGP, subdat3)
+  coef.int <- coef(linreg.int)
+  
+  # Next get means for saving and making CF
+  ## Get means and save
+  vals <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                       median(., na.rm = TRUE), 
+                                       dec1fn), x)
+  colnames(vals) <- c("inflammation", "mean", "median", "decile.1")
+  cf.ref0 <- cbind(vals[1, 2],vals[1, 3], vals[1, 4])
+  median.ratios <- mutate(vals, cf.median.0 = median / cf.ref0[,2] )
+  ln.vals <- summarise_each(grouped, funs(mean(., na.rm = TRUE),
+                                          median(., na.rm = TRUE),
+                                          dec1fn), ln_x)
+  colnames(ln.vals) <- c("inflammation", "mean", "median", "decile.1")
+  ### Create CF
+  cf.refs <- cbind(ln.vals[1, 2], ln.vals[1, 3], ln.vals[1, 4])
+  cf <- mutate(ln.vals, cf.mean = mean / cf.refs[,1],
+               cf.median = median / cf.refs[ ,2],
+               cf.decile.1 = decile.1 / cf.refs[ ,3],
+               cf2.mean = mean - cf.refs[,1])
+  cf$cf.median.0 <- median.ratios$cf.median.0
+  cf <- mutate(cf, cf2.mean.exp = exp(cf2.mean))
+  # Difference of the means of the lns is the ratio of the geometric means
+  
+  # Run linear regressions and save values
+  linreg <- lm(ln_x ~ ln_CRP + ln_AGP, subdat3)
+  coef <- coef(linreg)
+  linreg.int <- lm(ln_x ~ ln_CRP + ln_AGP + ln_CRP*ln_AGP, subdat3)
+  coef.int <- coef(linreg.int)
+  
+  
+  # Do corrections
+  ## Thurnham correction
+  subdat3$x_th1 <- ifelse(subdat3$inflcat == 0, subdat3$x, 
+                          ifelse(subdat3$inflcat == 1, subdat3$x / cf[2,10],
+                                 ifelse(subdat3$inflcat == 2, subdat3$x / cf[3,10],
+                                        ifelse(subdat3$inflcat == 3, 
+                                               subdat3$x / cf[4,10],
+                                               NA))))
+  subdat3$x_th1 <- unlist(subdat3$x_th1)
+  
+  ## Linear regressions
+  
+  ### Linear regression correction with decile reference - DECILE OF ALL vs. UNINFLAMED
+  subdat3 <- mutate(subdat3, 
+                    x_lc.3.5 = ifelse(ln_CRP > ln.crp_all[1,5] & ln_AGP > ln.agp_all[1,5],
+                                      exp(ln_x - coef[2]*(ln_CRP - ln.crp_all[1,5]) -
+                                            coef[3]*(ln_AGP - ln.agp_all[1,5])),
+                                      ifelse(ln_CRP > ln.crp_all[1,5] & ln_AGP <= ln.agp_all[1,5],
+                                             exp(ln_x - coef[2]*(ln_CRP - ln.crp_all[1,5])),
+                                             ifelse(ln_CRP <= ln.crp_all[1,5] & 
+                                                      ln_AGP > ln.agp_all[1,5],
+                                                    exp(ln_x - coef[3]*(ln_AGP - 
+                                                                          ln.agp_all[1,5])),
+                                                    exp(ln_x)))))
+  
+ 
+  ### Linear regression correction with external decile reference - no interaction
+  subdat3 <- mutate(subdat3, 
+                    x_lc.5 = ifelse(ln_CRP > ln.crp[1,7] & ln_AGP > ln.agp[1,7],
+                                    exp(ln_x - coef[2]*(ln_CRP - ln.crp[1,7]) -
+                                          coef[3]*(ln_AGP - ln.agp[1,7])),
+                                    ifelse(ln_CRP > ln.crp[1,7] & ln_AGP <= ln.agp[1,7],
+                                           exp(ln_x - coef[2]*(ln_CRP - ln.crp[1,7])),
+                                           ifelse(ln_CRP <= ln.crp[1,7] & 
+                                                    ln_AGP > ln.agp[1,7],
+                                                  exp(ln_x - coef[3]*(ln_AGP - 
+                                                                        ln.agp[1,7])),
+                                                  exp(ln_x)))))
+  
+    return(subdat3)
+  
+}
+
+shortcorrfn_vis <- function(x, visit, data, mom){
+  # First just filter dataset to make smaller and more manageable
+  subdat <- filter(data, visit_number == visit)
+  if(mom == "b"){
+    subdat2 <- subset(subdat, select = c("twinid", "visit_number", x, "crp_b",
+                                         "agp_b", "inflcat_b", "ln_crp_b",
+                                         "ln_agp_b"))
+    subdat3 <- mutate(subdat2, ln_x = log(subdat2[ ,3]), x = subdat2[ , 3],
+                      CRP = crp_b, AGP = agp_b, ln_CRP = ln_crp_b, 
+                      ln_AGP = ln_agp_b, inflcat = inflcat_b)
+    extdec <- c(-2.102639, -0.468499)
+  }
+  if(mom == "m"){
+    subdat2 <- subset(subdat, select = c("twinid", "visit_number", x, "crp_m",
+                                         "agp_m", "inflcat_m", "ln_crp_m",
+                                         "ln_agp_m"))
+    subdat3 <- mutate(subdat2, ln_x = log(subdat2[ ,3]), x = subdat2[ , 3],
+                      CRP = crp_m, AGP = agp_m, ln_CRP = ln_crp_m, 
+                      ln_AGP = ln_agp_m, inflcat = inflcat_m)
+    extdec <- c(-1.75152, -0.625036)
+  }
+  grouped <- group_by(subdat3, inflcat) %>%
+    filter(!is.na(inflcat))
+  # Next grab CRP and AGP references
+  ## CRP - by inflammation group
+  crps <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                       median(., na.rm = TRUE), 
+                                       dec1fn, 
+                                       min(., na.rm = TRUE)), CRP)
+  type <- c(rep("crp", dim(crps)[1]))
+  crp <- cbind(type, crps)
+  colnames(crp) <- c("var", "inflammation", "mean", "median", "decile.1", "min")
+  crpln <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                        median(., na.rm = TRUE), 
+                                        dec1fn, 
+                                        min(., na.rm = TRUE)),
+                          ln_CRP)
+  crpln.2 <- cbind(crpln, extdec[1])
+  type <- c(rep("crp", dim(crpln.2)[1]))
+  ln.crp <- cbind(type, crpln.2)
+  colnames(ln.crp) <- c("var", "inflammation", "mean", "median", "decile.1", "min", "ext.decile")
+  ## CRP - overall
+  crps.all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                           median(., na.rm = TRUE), 
+                                           dec1fn, 
+                                           min(., na.rm = TRUE)), CRP)
+  type <- c(rep("crp_all", dim(crps.all)[1]))
+  crp_all <- cbind(type, crps.all)
+  colnames(crp_all) <- c("var", "mean", "median", "decile.1", "min")
+  crpln_all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                            median(., na.rm = TRUE), 
+                                            dec1fn, 
+                                            min(., na.rm = TRUE)), ln_CRP)
+  crpln.2_all <- cbind(crpln_all, extdec[1])
+  type <- c(rep("crp_all", dim(crpln.2_all)[1]))
+  ln.crp_all <- cbind(type, crpln.2_all)
+  colnames(ln.crp_all) <- c("var", "mean", "median", "decile.1", "min", "ext.decile")
+  
+  ## AGP - by inflammation group
+  agps <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                       median(., na.rm = TRUE), 
+                                       dec1fn, 
+                                       min(., na.rm = TRUE)), 
+                         AGP)
+  type <- c(rep("agp", dim(agps)[1]))
+  agp <- cbind(type, agps)
+  colnames(agp) <- c("var", "inflammation", "mean", "median", "decile.1", "min")
+  agpln <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                        median(., na.rm = TRUE), 
+                                        dec1fn, 
+                                        min(., na.rm = TRUE)), 
+                          ln_AGP)
+  agpln.2 <- cbind(agpln, extdec[2])
+  type <- c(rep("agp", dim(agpln.2)[1]))
+  ln.agp <- cbind(type, agpln.2)
+  colnames(ln.agp) <- c("var", "inflammation", "mean", "median", "decile.1", "min", "ext.decile")  
+  infl.refs <- rbind(crp, agp)
+  infl.refs.ln <- rbind(ln.crp, ln.agp)
+  ## AGP - overall
+  agps.all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                           median(., na.rm = TRUE), 
+                                           dec1fn, 
+                                           min(., na.rm = TRUE)), AGP)
+  type <- c(rep("agp_all", dim(agps.all)[1]))
+  agp_all <- cbind(type, agps.all)
+  colnames(agp_all) <- c("var", "mean", "median", "decile.1", "min")
+  agpln_all <- summarise_each(subdat3, funs(mean(., na.rm = TRUE), 
+                                            median(., na.rm = TRUE), 
+                                            dec1fn, 
+                                            min(., na.rm = TRUE)), ln_AGP)
+  agpln.2_all <- cbind(agpln_all, extdec[1])
+  type <- c(rep("agp_all", dim(agpln.2_all)[1]))
+  ln.agp_all <- cbind(type, agpln.2_all)
+  colnames(ln.agp_all) <- c("var",  "mean", "median", "decile.1", "min", "ext.decile")
+  
+  # Run linear regressions and save values
+  linreg <- lm(ln_x ~ ln_CRP + ln_AGP, subdat3)
+  coef <- coef(linreg)
+  linreg.int <- lm(ln_x ~ ln_CRP + ln_AGP + ln_CRP*ln_AGP, subdat3)
+  coef.int <- coef(linreg.int)
+  
+  # Next get means for saving and making CF
+  ## Get means and save
+  vals <- summarise_each(grouped, funs(mean(., na.rm = TRUE), 
+                                       median(., na.rm = TRUE), 
+                                       dec1fn), x)
+  colnames(vals) <- c("inflammation", "mean", "median", "decile.1")
+  cf.ref0 <- cbind(vals[1, 2],vals[1, 3], vals[1, 4])
+  median.ratios <- mutate(vals, cf.median.0 = median / cf.ref0[,2] )
+  ln.vals <- summarise_each(grouped, funs(mean(., na.rm = TRUE),
+                                          median(., na.rm = TRUE),
+                                          dec1fn), ln_x)
+  colnames(ln.vals) <- c("inflammation", "mean", "median", "decile.1")
+  ### Create CF
+  cf.refs <- cbind(ln.vals[1, 2], ln.vals[1, 3], ln.vals[1, 4])
+  cf <- mutate(ln.vals, cf.mean = mean / cf.refs[,1],
+               cf.median = median / cf.refs[ ,2],
+               cf.decile.1 = decile.1 / cf.refs[ ,3],
+               cf2.mean = mean - cf.refs[,1])
+  cf$cf.median.0 <- median.ratios$cf.median.0
+  cf <- mutate(cf, cf2.mean.exp = exp(cf2.mean))
+  # Difference of the means of the lns is the ratio of the geometric means
+  
+  # Run linear regressions and save values
+  linreg <- lm(ln_x ~ ln_CRP + ln_AGP, subdat3)
+  coef <- coef(linreg)
+  linreg.int <- lm(ln_x ~ ln_CRP + ln_AGP + ln_CRP*ln_AGP, subdat3)
+  coef.int <- coef(linreg.int)
+  
+  
+  # Do corrections
+  ## Thurnham correction
+  subdat3$x_th1 <- ifelse(subdat3$inflcat == 0, subdat3$x, 
+                          ifelse(subdat3$inflcat == 1, subdat3$x / cf[2,10],
+                                 ifelse(subdat3$inflcat == 2, subdat3$x / cf[3,10],
+                                        ifelse(subdat3$inflcat == 3, 
+                                               subdat3$x / cf[4,10],
+                                               NA))))
+  subdat3$x_th1 <- unlist(subdat3$x_th1)
+  
+  ## Linear regressions
+  
+  ### Linear regression correction with decile reference - DECILE OF ALL vs. UNINFLAMED
+  subdat3 <- mutate(subdat3, 
+                    x_lc.3.5 = ifelse(ln_CRP > ln.crp_all[1,5] & ln_AGP > ln.agp_all[1,5],
+                                      exp(ln_x - coef[2]*(ln_CRP - ln.crp_all[1,5]) -
+                                            coef[3]*(ln_AGP - ln.agp_all[1,5])),
+                                      ifelse(ln_CRP > ln.crp_all[1,5] & ln_AGP <= ln.agp_all[1,5],
+                                             exp(ln_x - coef[2]*(ln_CRP - ln.crp_all[1,5])),
+                                             ifelse(ln_CRP <= ln.crp_all[1,5] & 
+                                                      ln_AGP > ln.agp_all[1,5],
+                                                    exp(ln_x - coef[3]*(ln_AGP - 
+                                                                          ln.agp_all[1,5])),
+                                                    exp(ln_x)))))
+  
+  
+  ### Linear regression correction with external decile reference - no interaction
+  subdat3 <- mutate(subdat3, 
+                    x_lc.5 = ifelse(ln_CRP > ln.crp[1,7] & ln_AGP > ln.agp[1,7],
+                                    exp(ln_x - coef[2]*(ln_CRP - ln.crp[1,7]) -
+                                          coef[3]*(ln_AGP - ln.agp[1,7])),
+                                    ifelse(ln_CRP > ln.crp[1,7] & ln_AGP <= ln.agp[1,7],
+                                           exp(ln_x - coef[2]*(ln_CRP - ln.crp[1,7])),
+                                           ifelse(ln_CRP <= ln.crp[1,7] & 
+                                                    ln_AGP > ln.agp[1,7],
+                                                  exp(ln_x - coef[3]*(ln_AGP - 
+                                                                        ln.agp[1,7])),
+                                                  exp(ln_x)))))
+  
+  return(subdat3)
+  
+}
+
+# Function to rename interim variables 
+retnamefn <- function(data, var, mom){
+  if(var == "retinol" & mom == "m"){
+    newdat <- rename(data, ln_ret_m = ln_x, 
+                     ret_m_th.1.1 = x_th1,
+                     ret_m_lc.5 = x_lc.5,
+                     ret_m_lc.3.5 = x_lc.3.5)}
+  if(var == "retinol" & mom == "b"){
+    newdat <- rename(data, ln_ret_b = ln_x, 
+                     ret_b_th.1.1 = x_th1,
+                      ret_b_lc.5 = x_lc.5,
+                     ret_b_lc.3.5 = x_lc.3.5)}
+  
+  if(var == "rbp" & mom == "m"){
+    newdat <- rename(data, ln_rbp_m = ln_x, 
+                     rbp_m_th.1.1 = x_th1,
+                     rbp_m_lc.5 = x_lc.5,
+                     rbp_m_lc.3.5 = x_lc.3.5)}
+  if(var == "rbp" & mom == "b"){
+    newdat <- rename(data, ln_rbp_b = ln_x, 
+                     rbp_b_th.1.1 = x_th1,
+                      rbp_b_lc.5 = x_lc.5,
+                     rbp_b_lc.3.5 = x_lc.3.5)}
+  
+  newdat <- mutate(newdat, x = NULL, CRP = NULL, AGP = NULL, ln_CRP = NULL,
+                   ln_AGP = NULL, inflcat = NULL)
+  return(newdat)
+}
+
+# Read data
+small <- read.csv("NIDI_streamlined.csv")
+
+# Add variables for number of illnesses between 2 and 6 months
+# Get morb episodes from visit 2 to visit 6
+m2to6 <- subset(small, agemo.v2 <= agemo2 & agemo2 <= agemo.v6, select = c("twinid", "visit_number", 
+                                                    "b_2weeks_diarrhea",
+                                                    "b_2weeks_fever", 
+                                                    "b_2weeks_cough_resp")) %>%
+  mutate(anymorb = ifelse(b_2weeks_fever == 1 | b_2weeks_diarrhea == 1 |
+                            b_2weeks_cough_resp == 1, 1, 
+                          ifelse(is.na(b_2weeks_fever) & is.na(b_2weeks_diarrhea)
+                                 & is.na(b_2weeks_cough_resp), NA, 0)))
+grouped.morb2to6 <- group_by(m2to6, twinid)
+num.morb.2to6 <- summarise_each(grouped.morb2to6, funs(sum), b_2weeks_diarrhea, 
+                             b_2weeks_fever, b_2weeks_cough_resp, anymorb) %>%
+  rename(num.diarr2to6 = b_2weeks_diarrhea, num.fever2to6 = b_2weeks_fever, 
+         num.cough2to6 =  b_2weeks_cough_resp, num.anymorb2to6 = anymorb) %>%
+  mutate(num.morb.2to6 = num.diarr2to6 + num.fever2to6 + num.cough2to6)
+
+# Do post visit 2
+mp2to6 <- subset(small, agemo.v2 < agemo2 & agemo2 <= agemo.v6, select = c("twinid", "visit_number", 
+                                                    "b_2weeks_diarrhea",
+                                                    "b_2weeks_fever", 
+                                                    "b_2weeks_cough_resp")) %>%
+  mutate(anymorb = ifelse(b_2weeks_fever == 1 | b_2weeks_diarrhea == 1 |
+                            b_2weeks_cough_resp == 1, 1, 
+                          ifelse(is.na(b_2weeks_fever) & is.na(b_2weeks_diarrhea)
+                                 & is.na(b_2weeks_cough_resp), NA, 0)))
+grouped.morbp2to6 <- group_by(mp2to6, twinid)
+num.morb.p2to6 <- summarise_each(grouped.morbp2to6, funs(sum), b_2weeks_diarrhea, 
+                             b_2weeks_fever, b_2weeks_cough_resp, anymorb) %>%
+  rename(num.diarrpost2to6 = b_2weeks_diarrhea, num.feverpost2to6 = b_2weeks_fever, 
+         num.coughpost2to6 =  b_2weeks_cough_resp, num.anymorbpost2to6 = anymorb) %>%
+  mutate(num.morb.post2to6 = num.diarrpost2to6 + num.feverpost2to6 + num.coughpost2to6)
+
+morbs <- merge(num.morb.2to6, num.morb.p2to6,by = "twinid", all.x = TRUE, all.y = TRUE)
+
+# Do post visit 2 up to visit 8
+mp2to8 <- subset(small, agemo.v2 < agemo2 & agemo2 <= agemo.v8, select = c("twinid", "visit_number", 
+                                                    "b_2weeks_diarrhea",
+                                                    "b_2weeks_fever", 
+                                                    "b_2weeks_cough_resp")) %>%
+  mutate(anymorb = ifelse(b_2weeks_fever == 1 | b_2weeks_diarrhea == 1 |
+                            b_2weeks_cough_resp == 1, 1, 
+                          ifelse(is.na(b_2weeks_fever) & is.na(b_2weeks_diarrhea)
+                                 & is.na(b_2weeks_cough_resp), NA, 0)))
+grouped.morbp2to8 <- group_by(mp2to8, twinid)
+num.morb.p2to8 <- summarise_each(grouped.morbp2to6, funs(sum), b_2weeks_diarrhea, 
+                             b_2weeks_fever, b_2weeks_cough_resp, anymorb) %>%
+  rename(num.diarrpost2to6 = b_2weeks_diarrhea, num.feverpost2to6 = b_2weeks_fever, 
+         num.coughpost2to6 =  b_2weeks_cough_resp, num.anymorbpost2to6 = anymorb) %>%
+  mutate(num.morb.post2to6 = num.diarrpost2to6 + num.feverpost2to6 + num.coughpost2to6)
+
+morbs <- merge(num.morb.2to6, num.morb.p2to6,by = "twinid", all.x = TRUE, all.y = TRUE)
+
+
+
+small_wmorb <- merge(small,morbs, by = "twinid", all.x = TRUE)
+
+# Add some new variables and such
+small <- mutate(small_wmorb, dead_baby = ifelse(twinid %in% c("134-B", "183-B", "213-B", "235-B", "764-G"), 1, 0)) %>%
+  mutate(mellizo_trillizo = ifelse(twinid == "744-B", 0, mellizo_trillizo))
+
+ret.b <- retnamefn(shortcorrfn("retinol_umolL_b", small, "b"), "retinol", "b")
+ret.m <- retnamefn(shortcorrfn("retinol_umolL_m", small, "m"), "retinol", "m")
+rets <- merge(ret.b, ret.m, by = c("twinid", "visit_number"), all.x = TRUE)
+
+#Correct RBP not stratified as well
+rbp.b <- retnamefn(shortcorrfn("rbp_b", small, "b"), "rbp", "b")
+rbp.m <- retnamefn(shortcorrfn("rbp_m", small, "m"), "rbp", "m")
+
+
+## Create new adjustments filtering out visit 2
+### RBP
+rbp.b_no2 <- retnamefn(shortcorrfn("rbp_b", filter(small, visit_number != 2), "b"), "rbp", "b") %>%
+  rename(rbp_b_th.1.1_no2 = rbp_b_th.1.1, rbp_b_lc.3.5_no2 = rbp_b_lc.3.5, rbp_b_lc.5_no2 = rbp_b_lc.5) %>%
+  mutate(rbp_b = NULL, crp_b = NULL, agp_b = NULL, ln_crp_b = NULL, ln_agp_b = NULL, ln_rbp_b = NULL)
+
+rbp.b_both <- merge(rbp.b, rbp.b_no2, by = c("twinid", "visit_number"), all.x = TRUE)
+
+corr_rbp <- merge(rbp.b_both, rbp.m, by = c("twinid", "visit_number")) %>%
+  mutate(agp_b = NULL, inflcat_b = NULL, crp_b = NULL, crp_m = NULL, agp_m = NULL, inflcat_m = NULL,
+         ln_ret_b = NULL, ln_ret_m = NULL, ln_crp_b = NULL, ln_agp_b = NULL, ln_agp_m = NULL, ln_crp_m = NULL,
+         ln_rbp_b = NULL, rbp_m = NULL, ln_rbp_m = NULL) %>%
+  rename(rbp_m_th.1.1_all = rbp_m_th.1.1, rbp_m_lc.3.5_all = rbp_m_lc.3.5, rbp_m_lc.5_all = rbp_m_lc.5,
+         rbp_b_th.1.1_all = rbp_b_th.1.1, rbp_b_lc.3.5_all = rbp_b_lc.3.5, rbp_b_lc.5_all = rbp_b_lc.5) %>%
+  mutate(rbp_b_lc.3.5_newvis = ifelse(visit_number == 2, rbp_b, rbp_b_lc.3.5_no2)) %>%
+  mutate(rbp_b = NULL)
+
+### Ret
+ret.b_no2 <- retnamefn(shortcorrfn("retinol_umolL_b", filter(small, visit_number != 2), "b"), "retinol", "b") %>%
+  rename(ret_b_th.1.1_no2 = ret_b_th.1.1, ret_b_lc.3.5_no2 = ret_b_lc.3.5, ret_b_lc.5_no2 = ret_b_lc.5) %>%
+  mutate(crp_b = NULL, agp_b = NULL, ln_crp_b = NULL, ln_agp_b = NULL, ln_ret_b = NULL, retinol_umolL_b = NULL)
+
+ret.b_both <- merge(ret.b, ret.b_no2, by = c("twinid", "visit_number"), all.x = TRUE)
+
+corr_ret <- merge(ret.b_both, ret.m, by = c("twinid", "visit_number")) %>%
+  mutate(agp_b = NULL, inflcat_b = NULL, crp_b = NULL, crp_m = NULL, agp_m = NULL, inflcat_m = NULL,
+         ln_ret_b = NULL, ln_ret_m = NULL, ln_crp_b = NULL, ln_agp_b = NULL, ln_agp_m = NULL, ln_crp_m = NULL) %>%
+  mutate(ret_b_lc.3.5_newvis = ifelse(visit_number == 2, retinol_umolL_b, ret_b_lc.3.5_no2))
+
+
+
+small_wcorret <- merge(small, corr_ret, by = c("twinid", "visit_number")) %>%
+  mutate(retinol_umolL_m.y = NULL, retinol_umolL_b.y = NULL) %>%
+  rename(retinol_umolL_m = retinol_umolL_m.x, retinol_umolL_b = retinol_umolL_b.x)
+
+small_wcorretrbp <- merge(small_wcorret, corr_rbp, by = c("twinid", "visit_number"))
+
+
+## Now correct retinol by visit number
+ret.b.vis2 <- retnamefn(shortcorrfn_vis("retinol_umolL_b", 2, small_wcorretrbp, "b"), "retinol", "b")
+ret.b.vis6 <- retnamefn(shortcorrfn_vis("retinol_umolL_b", 6, small_wcorretrbp, "b"), "retinol", "b")
+ret.b.vis8 <- retnamefn(shortcorrfn_vis("retinol_umolL_b", 8, small_wcorretrbp, "b"), "retinol", "b")
+ret_b_vis <- rbind(ret.b.vis2, ret.b.vis6, ret.b.vis8)  %>%
+  mutate(agp_b = NULL, inflcat_b = NULL, crp_b = NULL, crp_m = NULL, agp_m = NULL, inflcat_m = NULL,
+         ln_ret_b = NULL, ln_ret_m = NULL, ln_crp_b = NULL, ln_agp_b = NULL, ln_agp_m = NULL, ln_crp_m = NULL)
+## Now correct retinol by visit number-- MOMS
+ret.m.vis1 <- retnamefn(shortcorrfn_vis("retinol_umolL_m", 1, small_wcorretrbp, "m"), "retinol", "m")
+ret.m.vis6 <- retnamefn(shortcorrfn_vis("retinol_umolL_m", 6, small_wcorretrbp, "m"), "retinol", "m")
+ret_m_vis <- rbind(ret.m.vis1, ret.m.vis6)  %>%
+  mutate(agp_b = NULL, inflcat_b = NULL, crp_b = NULL, crp_m = NULL, agp_m = NULL, inflcat_m = NULL,
+         ln_ret_b = NULL, ln_ret_m = NULL, ln_crp_b = NULL, ln_agp_b = NULL, ln_agp_m = NULL, ln_crp_m = NULL)
+# Merge them together
+ret_vis <- merge(ret_b_vis, ret_m_vis, by = c("twinid", "visit_number"), all = TRUE)
+
+
+## Merge again
+small_w2corret <- merge(ret_vis, small_wcorretrbp, by = c("twinid", "visit_number"), all = TRUE) %>%
+  mutate(retinol_umolL_b.x = NULL, retinol_umolL_m.x = NULL) %>%
+  rename(retinol_umolL_b = retinol_umolL_b.y, retinol_umolL_m = retinol_umolL_m.y,
+         ret_b_lc.3.5_vis = ret_b_lc.3.5.x,  ret_b_lc.3.5_all = ret_b_lc.3.5.y, 
+         ret_m_lc.3.5_vis = ret_m_lc.3.5.x,  ret_m_lc.3.5_all = ret_m_lc.3.5.y, 
+         ret_b_th.1.1_vis = ret_b_th.1.1.x,  ret_b_th.1.1_all = ret_b_th.1.1.y, 
+         ret_m_th.1.1_vis = ret_m_th.1.1.x,  ret_m_th.1.1_all = ret_m_th.1.1.y, 
+         ret_b_lc.5_vis = ret_b_lc.5.x,  ret_b_lc.5_all = ret_b_lc.5.y, 
+         ret_m_lc.5_vis = ret_m_lc.5.x,  ret_m_lc.5_all = ret_m_lc.5.y) %>%
+  mutate(vad_ret_b_un = ifelse(retinol_umolL_b < 0.7, 1, ifelse(!is.na(retinol_umolL_b), 0, NA)),
+         vad_ret_b_3.5_vis = ifelse(ret_b_lc.3.5_vis < 0.7, 1, ifelse(!is.na(ret_b_lc.3.5_vis), 0, NA)),
+         vad_ret_m_3.5_vis = ifelse(ret_m_lc.3.5_vis < 0.7, 1, ifelse(!is.na(ret_m_lc.3.5_vis), 0, NA)),
+         vad_ret_b_3.5_all = ifelse(ret_b_lc.3.5_all < 0.7, 1, ifelse(!is.na(ret_b_lc.3.5_all), 0, NA)),
+         vad_ret_m_3.5_all = ifelse(ret_m_lc.3.5_all < 0.7, 1, ifelse(!is.na(ret_m_lc.3.5_all), 0, NA)),
+         vad_rbp_b_un_33 = ifelse(rbp_b < 0.33, 1, ifelse(!is.na(rbp_b), 0, NA)),
+         vad_rbp_b_lc3.5_newvis = ifelse(rbp_b_lc.3.5_newvis < 0.7, 1, ifelse(!is.na(rbp_b_lc.3.5_newvis), 0, NA)) ,
+         vad_rbp_b_lc_33_newvis = ifelse(rbp_b_lc.3.5_newvis < 0.33, 1, ifelse(!is.na(rbp_b_lc.3.5_newvis), 0, NA)) ,
+         vad_ret_b_lc_33_newvis = ifelse(ret_b_lc.3.5_newvis < 0.33, 1, ifelse(!is.na(ret_b_lc.3.5_newvis), 0, NA)),
+         vad_ret_b_lc35_newvis = ifelse(ret_b_lc.3.5_newvis < 0.7, 1, ifelse(!is.na(ret_b_lc.3.5_newvis), 0, NA)))
+
+
+## Get rid of twins and also subset to thos infants who have at least first blood draw
+comp <- filter(small_w2corret, mellizo_trillizo == 0 & !is.na(infl_vis2))
+comp2 <- filter(comp, !is.na(rbp_b))
+
+
+## Make subset datasets
+vis1 <- filter(comp, visit_number == 1) %>%
+  mutate(csec = relevel(csec, ref = "Vaginal"))
+vis2 <- filter(comp2, visit_number == 2)
+vis6 <- filter(comp2, visit_number == 6)
+vis8 <- filter(comp2, visit_number == 8)
+
+## Mom dats
+twinc <- c("604-G" , "638-G" , "763-G" , "764-G" ,  "784-B")
+vis1_m <- filter(small_w2corret, visit_number == 1 & twinid != "604-G" & twinid != "638-G" & twinid != "763-G" & 
+                   twinid !=  "764-G" & twinid !=  "784-B")
+vis6_m <- filter(small_w2corret, visit_number == 6 & twinid != "604-G" & twinid != "638-G" & twinid != "763-G" & 
+                   twinid !=  "764-G" & twinid !=  "784-B")
+
+```
+
+
+```{r table1, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE}
+
+
+## Table 1 -- need to double check
+# Enrollment characteristics
+age <- summary_cont2(vis1$age_days, 0, 0)
+
+# Birth characteristics
+sex <- summary_cat(vis1$male, 1, vis1)
+csec <- summary_cat(vis1$csec, 1, vis1)
+preterm <- summary_cat(vis1$preterm, 1, vis1)
+lowbwt <- summary_cat(vis1$lbw, 1, vis1)
+#birthint <- summary_cat(vis1$birthint_lt36  , 1, vis1)
+
+#"maternal" characteristics
+
+m_age <- summary_cont2(vis1_m$m_age_yrs, 1, 1)
+m_bmi <- summary_cont2(vis1_m$m_bmi_e, 1, 1)
+primipara <- summary_cat(vis1_m$primipara, 1, vis1_m)
+single <- summary_cat(vis1_m$single, 1, vis1_m)
+mjob <- summary_cat(vis1_m$m_job, 1, vis1_m)
+
+tab1 <- rbind(sex, csec,lowbwt, m_age, m_bmi, primipara, single, mjob )
+
+htmlTable(tab1, padding.rgroup = "&nbsp;&nbsp;&nbsp;",
+          css.cell = "padding-left: .5em; padding-right: 0.5em;",
+          header = c("N or Mean &plusmn; SD", "Frequency (%)"),
+          rnames = c("Male", "C-Section Birth", "Low birth weight (<2500g)",
+                     "Age (years)", "BMI", "Primipara", "Single", "Employed"),
+          tspanner = c("Infant Characteristics", "Maternal Characteristics"),
+          n.tspanner = c(3, 5),
+          caption = "Table 1: Characteristics of the Study Population",
+          align = c("l", rep("r", 2)))
+
+
+```
+
+```{r table2, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE}
+
+
+n2 <- cbind(dim(vis2)[1], "&#8211;")
+n6 <- cbind(dim(vis6)[1], "&#8211;")
+n8 <- cbind(dim(vis8)[1], "&#8211;")
+
+age2 <- summary_cont2(vis2$agemo.v2,1,1)
+age6 <- summary_cont2(vis6$agemo.v6,1,1)
+age8 <- summary_cont2(vis8$age_last_blood_draw_mo,1,1)
+
+bf2 <- summary_cat2("any_curr_bf", 2, comp2)
+bf6 <- summary_cat2("any_curr_bf", 6, comp2)
+bf8 <- summary_cat2("bf_last_blood_draw", 8, comp2)
+
+
+laz2 <- summary_cat2("curr_stunted", 2, comp2)
+laz6 <- summary_cat2("curr_stunted", 6, comp2)
+laz8 <- summary_cat2("curr_stunted", 8, comp2)
+
+
+ov2 <-  summary_cat2("curr_wflz1", 2, comp2)
+ov6 <- summary_cat2("curr_wflz1", 6, comp2)
+ov8 <- summary_cat2("curr_wflz1", 8, comp2)
+
+anemia2 <-  summary_cat2("curr_anemic", 2, comp2)
+anemia6 <-  summary_cat2("curr_anemic", 6, comp2)
+anemia8 <-  summary_cat2("curr_anemic", 8, comp2)
+
+ns <- cbind(n2, n6, n8)
+age <- cbind(age2, age6, age8)
+bf <- cbind(bf2, bf6, bf8)
+laz <- cbind(laz2, laz6, laz8)
+ov <- cbind(ov2, ov6, ov8)
+anemic <- cbind(anemia2, anemia6, anemia8)
+
+tab2 <- rbind(ns, age, bf, laz, ov, anemic)
+
+htmlTable(tab2, padding.rgroup = "&nbsp;&nbsp;&nbsp;",
+          css.cell = "padding-left: .5em; padding-right: 0.5em;",
+          header = rep(c("N or Mean &plusmn; SD", "Frequency (%)"), 3),
+          cgroup = c("2 Months", "6 - 8 Months", "12 - 18 Months"),
+          n.cgroup = c(2, 2, 2),
+          rnames = c("N", "Age", "Any current breastfeeding", "Stunted (LAZ < -2)", "Overweight (WFL > 1)", "Anemic (Hb < 13.5 g/dL)"),
+          tspanner = c("", ""),
+          n.tspanner = c(1, 5),
+          caption = "Table 2: Time-varying Characteristics of the Study Population",
+          align = c("l", rep("r", 2)))
+
+
+
+```
+
+
+```{r table3, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE}
+
+comp2 <- mutate(comp2, infl_num = ifelse(inflamed_b == "Inflamed", 1, 
+                                         ifelse(inflamed_b == "Not inflamed", 0, NA)))
+
+vas2 <- c("&ndash; &ndash;")
+vas6 <- summary_cat2("vita_pre6", 6, comp2)
+vas8 <- summary_cat2("vita_pre8", 8, comp2)
+
+infl2 <- summary_cat2("infl_num", 2, comp2)
+infl6 <- summary_cat2("infl_num", 6, comp2)
+infl8 <- summary_cat2("infl_num", 8, comp2)
+
+
+rbp2 <- summary_cont2(vis2$rbp_b, 2,2)
+rbp6 <- summary_cont2(vis6$rbp_b, 2,2)
+rbp8 <- summary_cont2(vis8$rbp_b, 2,2)
+
+vad2 <- summary_cat2("vad_b_un", 2,comp2)
+vad6 <- summary_cat2("vad_b_un", 6,comp2)
+vad8 <- summary_cat2("vad_b_un", 8,comp2)
+
+rbp_lc2 <- summary_cont2(vis2$rbp_b_lc.3.5_all, 2,2)
+rbp_lc6 <- summary_cont2(vis6$rbp_b_lc.3.5_all, 2,2)
+rbp_lc8 <- summary_cont2(vis8$rbp_b_lc.3.5_all, 2,2)
+
+rbp_lc2v <- summary_cont2(vis2$rbp_b_lc.3.5, 2,2)
+rbp_lc6v <- summary_cont2(vis6$rbp_b_lc.3.5, 2,2)
+rbp_lc8v <- summary_cont2(vis8$rbp_b_lc.3.5, 2,2)
+
+ret2 <- summary_cont2(vis2$retinol_umolL_b, 2,2)
+ret6 <- summary_cont2(vis6$retinol_umolL_b, 2,2)
+ret8 <- summary_cont2(vis8$retinol_umolL_b, 2,2)
+
+vadret2 <- summary_cat2("vad_ret_b_un", 2,comp2)
+vadret6 <- summary_cat2("vad_ret_b_un", 6,comp2)
+vadret8 <- summary_cat2("vad_ret_b_un", 8,comp2)
+
+
+retlc2 <- summary_cont2(vis2$ret_b_lc.3.5_vis, 2,2)
+retlc6 <- summary_cont2(vis6$ret_b_lc.3.5_vis, 2,2)
+retlc8 <- summary_cont2(vis8$ret_b_lc.3.5_vis, 2,2)
+
+retlc2a <- summary_cont2(vis2$ret_b_lc.3.5_all, 2,2)
+retlc6a <- summary_cont2(vis6$ret_b_lc.3.5_all, 2,2)
+retlc8a <- summary_cont2(vis8$ret_b_lc.3.5_all, 2,2)
+
+
+vadret2lc <- summary_cat2("vad_ret_b_3.5_vis", 2,comp2)
+vadret6lc <- summary_cat2("vad_ret_b_3.5_vis", 6,comp2)
+vadret8lc <- summary_cat2("vad_ret_b_3.5_vis", 8,comp2)
+
+
+
+
+```
+
+
+
+```{r newfig, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE, dev = 'pdf'}
+
+vis2 <- filter(comp2, visit_number == 2)
+vis6 <- filter(comp2, visit_number == 6)
+vis8 <- filter(comp2, visit_number == 8)
+
+
+vad2 <- prevfun(vis2$vad_b_un)
+vad6 <- prevfun(vis6$vad_b_un)
+vad8 <- prevfun(vis8$vad_b_un)
+
+vadrbp2un33 <- prevfun(vis2$vad_rbp_b_un_33)
+vadrbp6un33 <- prevfun(vis6$vad_rbp_b_un_33)
+vadrbp8un33 <- prevfun(vis8$vad_rbp_b_un_33)
+
+vadrbp2lc <- prevfun(vis2$vad_rbp_b_lc3.5_newvis)
+vadrbp6lc <- prevfun(vis6$vad_rbp_b_lc3.5_newvis)
+vadrbp8lc <- prevfun(vis8$vad_rbp_b_3.5_newvis)
+
+vadrbp2lc33 <- prevfun(vis2$vad_rbp_b_lc_33_newvis)
+vadrbp6lc33 <- prevfun(vis6$vad_rbp_b_lc_33_newvis)
+vadrbp8lc33 <- prevfun(vis8$vad_rbp_b_lc_33_newvis)
+
+vadret2 <- prevfun(vis2$vad_ret_b_un)
+vadret6 <- prevfun(vis6$vad_ret_b_un)
+vadret8 <- prevfun(vis8$vad_ret_b_un)
+
+vadret2lc <- prevfun(vis2$vad_ret_b_lc35_newvis)
+vadret6lc <- prevfun(vis6$vad_ret_b_lc35_newvis)
+vadret8lc <- prevfun(vis8$vad_ret_b_lc35_newvis)
+
+
+## Prep
+vadvals2 <- rbind(vad2, vadrbp2lc, vadrbp2un33, vadrbp2lc33, vadret2, vadret2lc)
+vadvals6 <- rbind(vad6, vadrbp6lc, vadrbp6un33, vadrbp6lc33, vadret6, vadret6lc)
+vadvals8 <- rbind(vad8, vadrbp8lc, vadrbp8un33, vadrbp8lc33, vadret8, vadret8lc)
+vadvals <- rbind(vadvals2, vadvals6, vadvals8)
+ages <- c(rep("2 months", 6), rep("6 - 8 months", 6), rep("12 - 18 months", 6))
+type <- c(rep(c("Unadjusted", "Adjusted*"), 9))
+marker <- rep(c("RBP < 0.7", "RBP < 0.7", "RBP < 0.33", "RBP < 0.33","Retinol < 0.7", "Retinol < 0.7"), 3)
+
+VAD <- cbind(marker, type, ages, vadvals)
+rownames(VAD) <- NULL
+colnames(VAD) <- c("Marker", "Type", "Age", "Value")
+VAD <- data.frame(VAD)
+VAD$Value <- as.numeric(levels(VAD$Value))[VAD$Value]
+VAD$Age <- factor(VAD$Age, levels = c("2 months", "6 - 8 months", "12 - 18 months"))
+VAD$Marker <- factor(VAD$Marker, levels = c("RBP < 0.7", "RBP < 0.33", "Retinol < 0.7"))
+VAD$Type <- factor(VAD$Type, levels = c("Unadjusted", "Adjusted*"))
+
+
+vad_plot <-  ggplot(VAD, 
+                      aes(x = Type, y = Value, fill = Type)) + 
+            geom_bar(aes(fill = Type), position = "dodge", 
+                     stat = "identity" ) +
+            facet_wrap(~Age + Marker) +
+            scale_y_continuous(minor_breaks = seq(0, 80, 5), breaks = seq(0, 80, 20), 
+                               limits = c(0, 80)) + 
+            theme(legend.position = "bottom",
+                  panel.background = element_rect(fill = "white"),
+                  panel.grid.major.x = element_blank(),
+                  panel.grid.minor.x = element_blank(),
+                  panel.grid.major.y = element_line(size = 0.5, colour = "grey62")) + 
+                 # panel.grid.minor.y = element_line(size = 0.75) +
+            theme(strip.text = element_text(size=14),
+                  strip.background = element_rect(color = "white", fill = "white"),
+                  legend.text = element_text(size = 14),
+                  legend.title = element_blank()) +
+            theme(title = element_text(size = 16)) + 
+            theme(axis.title = element_text(size = 16), 
+                  axis.text = element_text(size = 14),
+                  axis.ticks.x = element_blank(),
+                  axis.ticks.y = element_line(colour = "grey62"))  + 
+            facet_wrap(~Age + Marker) + 
+            scale_fill_manual(values = c("dodgerblue3", "orange"), guide = guide_legend(reverse=TRUE)) +
+            xlab("") + ylab("Prevalence (%)") +
+          ggtitle("Prevalence of VAD by Age and Marker, Adjusted and Unadjusted")+   
+          theme(plot.title = element_text(vjust=2, size = 16))
+
+vad_plot
+
+
+
+```
+
+
+```{r table4, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE}
+
+
+## Attempt poisson model
+vis2 <- mutate(vis2, monthsv26 = agemo.v6 - agemo.v2) %>%
+  mutate(logmon2_6 = log(monthsv26),
+         ratemorb = num.anymorb2to6 / monthsv26)
+
+poissmod_crude <- glm(formula = num.anymorb2to6 ~ vad_b_un + offset(logmon2_6),
+                       family = poisson, data = vis2)
+
+poissmod_job <- glm(formula = num.anymorb2to6 ~ m_job + offset(logmon2_6),
+                       family = poisson, data = vis2)
+
+poissmod_lbw <- glm(formula = num.anymorb2to6 ~ lbw + offset(logmon2_6),
+                       family = poisson, data = vis2)
+
+
+poissmod_adj <- glm(formula = num.anymorb2to6 ~ vad_b_un + m_job + lbw + offset(logmon2_6),
+                      family = poisson, data = vis2)
+
+
+
+poissmod_crude_lc <- glm(formula = num.anymorb2to6 ~ vad_rbp_b_lc.3.5 + offset(logmon2_6),
+                       family = poisson, data = vis2)
+
+
+poissmod_ad_lc <- glm(formula = num.anymorb2to6 ~ vad_rbp_b_lc.3.5 + m_job + lbw + offset(logmon2_6),
+                      family = poisson, data = vis2)
+
+
+crude_RR <- get_ORs(poissmod_crude)
+job_RR <- get_ORs(poissmod_job)
+lbw_RR <-  get_ORs(poissmod_lbw)
+adj_RR <- get_ORs(poissmod_adj)
+
+crudes <- rbind(crude_RR, job_RR, lbw_RR)
+
+totRR <- cbind(crudes, adj_RR)
+
+
+
+htmlTable(totRR, padding.rgroup = "&nbsp;&nbsp;&nbsp;",
+          css.cell = "padding-left: .5em; padding-right: 0.5em;",
+          header = rep(c("Rate Ratio", "95% CI", "P-Value<sup>&dagger;</sup>"), 2),
+          cgroup = c("Crude", "Adjusted"), n.cgroup = c(3, 3),
+          rnames = c("Vitamin A Deficient at 2 months", "Maternal Employment", "Low Birth Weight (< 2500g)"),
+          caption = "Table 4: Effects of Early VAD on Rates of Reported Morbidity Episodes (N = 330)", 
+          tfoot = "<sup>&dagger;</sup>Wald Chi Square.",
+          align = c("l", rep("r", 2)))
+
+```
+
+
+```{r fig1, echo=FALSE, results = "asis", comment = NA, message = FALSE, warning = FALSE, dev = 'pdf', fig.width = 10, fig.height= 6}
+
+
+
+smaller <- filter(small, visit_number == 2 | visit_number == 6 | visit_number == 8) %>%
+  mutate(visfact = factor(visit_number, labels = c("2", "6 - 8", "12 - 18")))
+  
+### NOW LETs PLOT AGP and CRP vs RETINOL
+## CRP and retinol - neg rel for 6,8 mo, pos for 2 mo
+vis2 <- filter(smaller, visit_number == 2)
+vis6 <- filter(smaller, visit_number == 6)
+vis8 <- filter(smaller, visit_number == 8)
+
+
+ggplot(data= smaller, aes(x = ln_crp_b, y = ln_rbp_b, colour = visfact)) + geom_point(size  = 2) +
+  scale_color_manual(values = c("red", "green", "blue")) + geom_smooth(method = "lm") + 
+  xlab("Ln(CRP) (mg/L)") + ylab("Ln(RBP) (umol/L)") +
+  ggtitle("Retinol-Binding Protein (RBP) by C-Reactive Protein (CRP) in Infants, by Age") +
+  labs(colour = "Age (months)" ) +
+  theme(text = element_text(size = 18),
+        legend.title = element_text("Age (months)"), 
+        legend.position = "right") +
+  annotate("text",  label = paste("2 months: ", lm_info(y = vis2$ln_rbp_b, x = vis2$ln_crp_b, df = vis2)), 
+           x = 2.5, y = 0.85, size = 5) +
+  annotate("text",  label = paste("6-8 months: ", lm_info(y = vis6$ln_rbp_b, x = vis6$ln_crp_b, df = vis6)), 
+           x = 2.3, y = 0.75, size = 5) +
+  annotate("text",  label = paste("12-18 months: ", lm_info(y = vis8$ln_rbp_b, x = vis8$ln_crp_b, df = vis8)), 
+           x = 2.2, y = 0.65, size = 5) 
+
+  
+```
+
+
